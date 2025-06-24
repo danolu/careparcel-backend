@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AccessCode {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  boxId       String?
+  locationId  String?
+  isUsed      Boolean      @default(false)
+  assignedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  box         Box?         @relation(fields: [boxId], references: [id])
+  location    Location?    @relation(fields: [locationId], references: [id])
+  transaction Transaction?
+}
+
+model Transaction {
+  id             String        @id @default(cuid())
+  productId      String
+  locationId     String
+  quantity       Int
+  ref            String        @unique
+  purchaseCodeId String?
+  accessCodeId   String        @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  accessCode     AccessCode    @relation(fields: [accessCodeId], references: [id])
+  location       Location      @relation(fields: [locationId], references: [id])
+  product        Product       @relation(fields: [productId], references: [id])
+  purchaseCode   PurchaseCode? @relation(fields: [purchaseCodeId], references: [code])
+}
+
+model PurchaseCode {
+  code             String        @id
+  expiresAt        DateTime
+  maxOrderQuantity Int
+  totalOrderLimit  Int
+  locationId       String?
+  createdAt        DateTime      @default(now())
+  location         Location?     @relation(fields: [locationId], references: [id])
+  transactions     Transaction[]
+  products         Product[]     @relation("ProductToPurchaseCode")
+}
+
+model Location {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+  accessCodes   AccessCode[]
+  boxes         Box[]
+  purchaseCodes PurchaseCode[]
+  transactions  Transaction[]
+}
+
+model Box {
+  id          String       @id @default(cuid())
+  boxNumber   String
+  locationId  String
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  accessCodes AccessCode[]
+  location    Location     @relation(fields: [locationId], references: [id])
+
+  @@unique([boxNumber, locationId])
+}
+
+model Product {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  price         Int
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  transactions  Transaction[]
+  purchaseCodes PurchaseCode[] @relation("ProductToPurchaseCode")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String?
+  role      Role     @default(ADMIN)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  SUPER_ADMIN
+}
